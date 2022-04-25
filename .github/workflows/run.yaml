@@ -1,0 +1,31 @@
+name: s3-logs-sync
+on: [push]
+env:
+  SOURCE_HOST : localhost
+  SOURCE_USER : ope
+  SOURCE_DIR  : /demo/demo
+  DIST_BACKET : aaaaaa
+jobs:
+  check-bats-version:
+    runs-on: self-hosted
+    steps:
+      - run: |
+          : # Logfile sync Script start.
+          : # ソースのディレクトリ有無を判定した方がいいか？それ以外に良い判定式はあるか？
+          : # そもそもself-runnerはどうやってログ集積サーバに接続するのだろうか？
+          : # SSHはIPとパス？鍵？どうやって繋ぐのかで少し判定方法が変わる。
+          : # if [ `ssh ${{ env.SOURCE_USER }}@${{ env.SOURCE_HOST }} "ls ${{ env.SOURCE_DIR }}"` = '${{ env.SOURCE_DIR }}' ]; then
+          if [ "${{ env.SOURCE_DIR }}" = "${{ env.SOURCE_DIR }}" ]; then
+            echo "##### Start  file sync. #####"
+            echo "# " `date` " #"
+            : # デモ用コード
+            cd /home/ec2-user
+            ls -la | wc -l
+            : # 実際に動かすコード（今はコメントアウト）
+            : # aws s3 sync ${{ env.SOURCE_USER }}@${{ env.SOURCE_HOST }}:${{ env.SOURCE_DIR }} s3://${{ env.DIST_BACKET }}
+            echo "# " `date` " #"
+            echo "##### Finish file sync. #####"
+          else
+            echo "##### Error File path not exist. #####"
+            echo "# " `date` " #"
+          fi
