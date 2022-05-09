@@ -1,31 +1,56 @@
 name: s3-logs-sync
-on: [push]
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "実行対象の環境を'stg'または'prd'で入力"
+        required: true
+      job:
+        description: "S3への同期処理の場合は'sync'でログファイルの削除は'del'を入力"
+        required: true
+
 env:
-  SOURCE_HOST : localhost
-  SOURCE_USER : ope
-  SOURCE_DIR  : /demo/demo
-  DIST_BACKET : aaaaaa
+  STG_HOST: 10.10.10.10
+  PRD_HOST: 10.10.10.11
+  STG_DIST_BACKET:
+  PRD_DIST_BACKET:
+
 jobs:
-  check-bats-version:
+  stg-job:
+    if: ${{ github.event.inputs.environment == 'stg' }}
     runs-on: self-hosted
     steps:
-      - run: |
-          : # Logfile sync Script start.
-          : # ソースのディレクトリ有無を判定した方がいいか？それ以外に良い判定式はあるか？
-          : # そもそもself-runnerはどうやってログ集積サーバに接続するのだろうか？
-          : # SSHはIPとパス？鍵？どうやって繋ぐのかで少し判定方法が変わる。
-          : # if [ `ssh ${{ env.SOURCE_USER }}@${{ env.SOURCE_HOST }} "ls ${{ env.SOURCE_DIR }}"` = '${{ env.SOURCE_DIR }}' ]; then
-          if [ "${{ env.SOURCE_DIR }}" = "${{ env.SOURCE_DIR }}" ]; then
-            echo "##### Start  file sync. #####"
-            echo "# " `date` " #"
-            : # デモ用コード
-            cd /home/ec2-user
-            ls -la | wc -l
-            : # 実際に動かすコード（今はコメントアウト）
-            : # aws s3 sync ${{ env.SOURCE_USER }}@${{ env.SOURCE_HOST }}:${{ env.SOURCE_DIR }} s3://${{ env.DIST_BACKET }}
-            echo "# " `date` " #"
-            echo "##### Finish file sync. #####"
-          else
-            echo "##### Error File path not exist. #####"
-            echo "# " `date` " #"
-          fi
+      - if: ${{ github.event.inputs.job == 'sync' }}
+        run: |
+          cd "なんのディレクトリ？"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ./vault_password_file
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY_STG }}" > ./id_rsa
+          chmod 600 ./id_rsa
+          ansible ${{ env.STG_HOST }} aws s3 sync "転送元DIR" s3://${{ env.STG_DIST_BACKET }}
+      - if: ${{ github.event.inputs.job == 'del' }}
+        run: |
+          cd "なんのディレクトリ？"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ./vault_password_file
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY_STG }}" > ./id_rsa
+          chmod 600 ./id_rsa
+          ansible ${{ env.STG_HOST }} find ./ -mtime +50 -name | xargs rm -f
+
+  prd-job:
+    if: ${{ github.event.inputs.environment == 'prd' }}
+    runs-on: self-hosted
+    steps:
+      - if: ${{ github.event.inputs.job == 'sync' }}
+        run: |
+          cd "なんのディレクトリ？"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ./vault_password_file
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY_STG }}" > ./id_rsa
+          chmod 600 ./id_rsa
+          ansible ${{ env.PRD_HOST }} aws s3 sync "転送元DIR" s3://${{ env.PRD_DIST_BACKET }}
+      - if: ${{ github.event.inputs.job == 'del' }}
+        run: |
+          cd "なんのディレクトリ？"
+          echo "${{ secrets.ANSIBLE_VAULT_PASSWORD }}" > ./vault_password_file
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY_STG }}" > ./id_rsa
+          chmod 600 ./id_rsa
+          ansible ${{ env.PRD_HOST }} find ./ -mtime +50 -name | xargs rm -f
